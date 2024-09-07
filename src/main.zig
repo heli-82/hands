@@ -2,6 +2,7 @@ const std = @import("std");
 const Arraylist = std.ArrayList;
 const Allocator = std.mem.Allocator;
 var gpa = std.heap.GeneralPurposeAllocator(.{ .verbose_log = false }){};
+var arena_alloc = std.heap.ArenaAllocator.allocator();
 const alloc = gpa.allocator();
 
 const stdin = std.io.getStdIn().reader();
@@ -52,6 +53,16 @@ const Card = struct {
         _ = fmt;
         try writer.print("{s} of {s}", .{ @tagName(self.value), @tagName(self.suit) });
     }
+
+    pub fn compare_by_value(_: void, a: Card, b: Card) bool {
+        if (a.value == b.value) return @intFromEnum(a.suit) < @intFromEnum(b.suit);
+        return @intFromEnum(a.value) < @intFromEnum(b.value);
+    }
+
+    pub fn compare_by_suit(_: void, a: Card, b: Card) bool {
+        if (a.suit == b.suit) return @intFromEnum(a.value) < @intFromEnum(b.value);
+        return @intFromEnum(a.suit) < @intFromEnum(b.suit);
+    }
 };
 
 pub fn generate_deck() !Arraylist(Card) {
@@ -79,6 +90,17 @@ pub fn draw(hand: *Arraylist(Card), deck: *Arraylist(Card), amount: u8) !void {
     }
 }
 
+pub fn handle_input() !std.mem.SplitIterator(u8, std.mem.DelimiterType.sequence) {
+    var line: [64]u8 = undefined;
+    const size = try stdin.read(&line);
+    const player_act = std.mem.trim(u8, line[0..size], "\n");
+    return std.mem.split(u8, player_act, " ");
+}
+
+// pub fn get_hand_rank(selected_cards: []Card) void {
+//
+// }
+
 pub fn main() !void {
     var deck = try generate_deck();
     defer deck.deinit();
@@ -89,6 +111,7 @@ pub fn main() !void {
     var hands: u8 = 4;
 
     try draw(&hand, &deck, 8);
+    std.mem.sort(Card, hand.items, {}, Card.compare_by_suit);
 
     while (hands > 0) {
         try stdout.print("Your hand:\n", .{});
@@ -97,13 +120,9 @@ pub fn main() !void {
         }
 
         // try stdout.print("{s}", .{std.mem.trim(u8, "\nHello\n", "\n")});
-        const Act = enum(u8) { Play = 1, Discard = 2 };
+        const Act = enum(u8) { Play = 1, Discard = 2, SetSuitSort = 3, SetValueSort };
 
-        var line: [64]u8 = undefined;
-        const size = try stdin.read(&line);
-        const player_act = std.mem.trim(u8, line[0..size], "\n");
-
-        var splitted_act = std.mem.split(u8, player_act, " ");
+        var splitted_act = try handle_input();
 
         var action: Act = undefined;
         var selected_cards = Arraylist(Card).init(alloc);
@@ -115,23 +134,20 @@ pub fn main() !void {
                     action = Act.Play;
                 } else if (std.mem.eql(u8, x, "discard")) {
                     action = Act.Discard;
+                } else if (std.mem.eql(u8, x, "set_suit_sort")) {
+                    action = Act.SetSuitSort;
+                } else if (std.mem.eql(u8, x, "set_value_sort")) {
+                    action = Act.SetValueSort;
                 }
             } else {
-                const select_index = std.fmt.parseInt(u8, x, 10) catch |err| switch (err) {
-                    error.Overflow => {
-                        try stdout.writeAll("Please enter a small positive number\n");
-                        continue;
-                    },
-                    error.InvalidCharacter => {
-                        try stdout.writeAll("Please enter a valid number\n");
-                        continue;
-                    },
-                };
-                try selected_cards.append(hand.items[select_index]);
+                const select_index = std.fmt.parseInt(u8, x, 10) catch continue;
+                if (hand.items.len > select_index) {
+                    try selected_cards.append(hand.items[select_index]);
+                }
             }
         }
-		
-		std.debug.print("{}, {}", .{action, selected_cards});
+
+        std.debug.print("{}, {}", .{ action, selected_cards });
 
         hands -= 1;
         discards -= 1;
