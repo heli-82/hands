@@ -39,6 +39,8 @@ const allSuits = [_]Suit{
     .diamonds,
 };
 
+const SortOrder = enum { Value, Suit };
+
 const Card = struct {
     suit: Suit,
     value: Value,
@@ -54,14 +56,17 @@ const Card = struct {
         try writer.print("{s} of {s}", .{ @tagName(self.value), @tagName(self.suit) });
     }
 
-    pub fn compare_by_value(_: void, a: Card, b: Card) bool {
-        if (a.value == b.value) return @intFromEnum(a.suit) < @intFromEnum(b.suit);
-        return @intFromEnum(a.value) < @intFromEnum(b.value);
-    }
-
-    pub fn compare_by_suit(_: void, a: Card, b: Card) bool {
-        if (a.suit == b.suit) return @intFromEnum(a.value) < @intFromEnum(b.value);
-        return @intFromEnum(a.suit) < @intFromEnum(b.suit);
+    pub fn compare(order: SortOrder, a: Card, b: Card) bool {
+        switch (order) {
+            SortOrder.Suit => {
+                if (a.suit == b.suit) return @intFromEnum(a.value) < @intFromEnum(b.value);
+                return @intFromEnum(a.suit) < @intFromEnum(b.suit);
+            },
+            SortOrder.Value => {
+                if (a.value == b.value) return @intFromEnum(a.suit) < @intFromEnum(b.suit);
+                return @intFromEnum(a.value) < @intFromEnum(b.value);
+            },
+        }
     }
 };
 
@@ -97,11 +102,26 @@ pub fn handle_input() !std.mem.SplitIterator(u8, std.mem.DelimiterType.sequence)
     return std.mem.split(u8, player_act, " ");
 }
 
-// pub fn get_hand_rank(selected_cards: []Card) void {
-//
-// }
+const scores_and_mult: []struct { i32, i32 } = {};
+
+const Rank = struct {
+    const StraightFlush = .{ 100, 8 };
+    const Four = .{ 60, 7 };
+    const FullHouse = .{ 40, 4 };
+    const Flush = .{ 35, 5 };
+    const Straight = .{ 31, 4 };
+    const Three = .{ 30, 4 };
+    const TwoPair = .{ 20, 3 };
+    const Pair = .{ 10, 2 };
+    const High = .{ 5, 1 };
+
+
+};
 
 pub fn main() !void {
+    const score = Rank.get_score(Rank.Four);
+    std.debug.print("{}\n", .{score});
+
     var deck = try generate_deck();
     defer deck.deinit();
     var hand = Arraylist(Card).init(alloc);
@@ -111,7 +131,7 @@ pub fn main() !void {
     var hands: u8 = 4;
 
     try draw(&hand, &deck, 8);
-    std.mem.sort(Card, hand.items, {}, Card.compare_by_suit);
+    std.mem.sort(Card, hand.items, SortOrder.Value, Card.compare);
 
     while (hands > 0) {
         try stdout.print("Your hand:\n", .{});
