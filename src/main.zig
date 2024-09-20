@@ -43,15 +43,18 @@ pub fn draw(hand: *Arraylist(Card), deck: *Arraylist(Card), amount: u8) !void {
 }
 
 pub fn main() !void {
-	try stdout.print("\x1b[3;35mCommands:\n - play [*indexes]\n - discard [*indexes]\n - set_value_sort\n - set_suit_sort\n\x1b[0m", .{});
+	const SortType = enum{Value, Suit};
     var deck = try generate_deck();
     defer deck.deinit();
     var hand = Arraylist(Card).init(alloc);
     defer hand.deinit();
 
+	try stdout.print("\x1b[3;35mCommands:\n - play [*indexes]\n - discard [*indexes]\n - set_value_sort\n - set_suit_sort\n\x1b[0m", .{});
+
     var discards: u8 = 4;
     var hands: u8 = 4;
     var total: i32 = 0;
+	var sort_type: SortType = SortType.Value;
 
     try draw(&hand, &deck, 8);
     std.mem.sort(Card, hand.items, SortOrder.Value, Card.compare);
@@ -62,7 +65,7 @@ pub fn main() !void {
             try stdout.print("{d}: {}\n", .{ i, c });
         }
 
-        const Act = enum(u8) { Play = 1, Discard = 2, SetSuitSort = 3, SetValueSort };
+        const Act = enum(u8) { Play = 1, Discard = 2, SetSuitSort = 3, SetValueSort = 4, Nothing = 5 };
 
 		try stdout.print("\x1b[0;33m > ",.{});
         var line: [64]u8 = undefined;
@@ -81,10 +84,14 @@ pub fn main() !void {
         } else if (std.mem.eql(u8, act, "discard")) {
             action = Act.Discard;
         } else if (std.mem.eql(u8, act, "set_suit_sort")) {
+			sort_type = SortType.Suit;
             action = Act.SetSuitSort;
         } else if (std.mem.eql(u8, act, "set_value_sort")) {
+			sort_type = SortType.Value;
             action = Act.SetValueSort;
-        }
+        } else {
+			action = Act.Nothing;
+		}
 
         switch (action) {
             .SetValueSort => {
@@ -125,10 +132,18 @@ pub fn main() !void {
                 total += rank.get_result(selected_cards.items);
                 try draw(&hand, &deck, @intCast(@max(0, 8 - hand.items.len)));
                 hands -= 1;
+				switch (sort_type){
+					SortType.Value => std.mem.sort(Card, hand.items, SortOrder.Value, Card.compare),
+					SortType.Suit => std.mem.sort(Card, hand.items, SortOrder.Suit, Card.compare),
+				}
             },
             .Discard => {
                 try draw(&hand, &deck, @intCast(@max(0, 8 - hand.items.len)));
                 discards -= 1;
+				switch (sort_type){
+					SortType.Value => std.mem.sort(Card, hand.items, SortOrder.Value, Card.compare),
+					SortType.Suit => std.mem.sort(Card, hand.items, SortOrder.Suit, Card.compare),
+				}
             },
             else => {},
         }
