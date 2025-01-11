@@ -22,8 +22,8 @@ pub const Value = enum(u8) {
     ace = 14,
 };
 
-pub const allValues = [_]Value{ .two, .three, .four, .five, .six, .seven, .eight, .nine, .ten, .jack, .queen, .king, .ace };
-pub const allSuits = [_]Suit{
+pub const allValues = [13]Value{ .two, .three, .four, .five, .six, .seven, .eight, .nine, .ten, .jack, .queen, .king, .ace };
+pub const allSuits = [4]Suit{
     .spades,
     .hearts,
     .clubs,

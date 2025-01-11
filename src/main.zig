@@ -43,20 +43,22 @@ pub fn draw(hand: *Arraylist(Card), deck: *Arraylist(Card), amount: u8) !void {
 }
 
 pub fn main() !void {
-	try stdout.print("\x1b[3;35mCommands:\n - play [*indexes]\n - discard [*indexes]\n - set_value_sort\n - set_suit_sort\n\x1b[0m", .{});
+    try stdout.print("\x1b[3;35mCommands:\n - play [*indexes]\n - discard [*indexes]\n - set_value_sort\n - set_suit_sort\n\x1b[0m", .{});
     var deck = try generate_deck();
     defer deck.deinit();
     var hand = Arraylist(Card).init(alloc);
     defer hand.deinit();
 
+    var current_sort: SortOrder = SortOrder.Value;
     var discards: u8 = 4;
     var hands: u8 = 4;
     var total: i32 = 0;
 
     try draw(&hand, &deck, 8);
-    std.mem.sort(Card, hand.items, SortOrder.Value, Card.compare);
 
     while (hands > 0) {
+        std.mem.sort(Card, hand.items, current_sort, Card.compare);
+
         try stdout.print("Your hand:\n", .{});
         for (0.., hand.items) |i, c| {
             try stdout.print("{d}: {}\n", .{ i, c });
@@ -64,13 +66,12 @@ pub fn main() !void {
 
         const Act = enum(u8) { Play = 1, Discard = 2, SetSuitSort = 3, SetValueSort };
 
-		try stdout.print("\x1b[0;33m > ",.{});
+        try stdout.print("\x1b[0;34m{d}\x1b[0;31m {d}\x1b[0;33m > ", .{ hands, discards });
         var line: [64]u8 = undefined;
         const size = try stdin.read(&line);
         const player_act = std.mem.trim(u8, line[0..size], "\n");
         var separated_act = std.mem.split(u8, player_act, " ");
-		try stdout.print("\x1b[0m",.{});
-
+        try stdout.print("\x1b[0m", .{});
 
         var selected_cards = Arraylist(Card).init(alloc);
         defer selected_cards.deinit();
@@ -88,11 +89,13 @@ pub fn main() !void {
 
         switch (action) {
             .SetValueSort => {
-                std.mem.sort(Card, hand.items, SortOrder.Value, Card.compare);
+                current_sort = SortOrder.Value;
+                //std.mem.sort(Card, hand.items, SortOrder.Value, Card.compare);
                 continue;
             },
             .SetSuitSort => {
-                std.mem.sort(Card, hand.items, SortOrder.Suit, Card.compare);
+                current_sort = SortOrder.Suit;
+                //std.mem.sort(Card, hand.items, SortOrder.Suit, Card.compare);
                 continue;
             },
             else => {},
